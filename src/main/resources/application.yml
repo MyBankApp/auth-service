@@ -1,0 +1,19 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /api/
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/auth_service
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+jwt:
+  secret: yCNpWMJ0fMl2a+zquQsDl2hfjQnw7AMqLHu0VfD3WL8=
+  access-expiration-ms: 900000
+  refresh-expiration-ms: 604800000
