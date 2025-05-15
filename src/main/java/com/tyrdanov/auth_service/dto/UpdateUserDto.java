@@ -20,4 +20,6 @@ public class UpdateUserDto {
 
     String password;
 
+    Double balance = 0.0;
+
 }
