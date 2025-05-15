@@ -17,3 +17,8 @@ jwt:
   secret: yCNpWMJ0fMl2a+zquQsDl2hfjQnw7AMqLHu0VfD3WL8=
   access-expiration-ms: 900000
   refresh-expiration-ms: 604800000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
