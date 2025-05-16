@@ -8,9 +8,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 import com.tyrdanov.auth_service.repository.TokenRepository;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
+@Transactional
 @EnableScheduling
 @RequiredArgsConstructor
 public class TokenCleanupConfig {
