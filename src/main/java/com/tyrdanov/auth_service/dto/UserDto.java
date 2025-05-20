@@ -1,5 +1,6 @@
 package com.tyrdanov.auth_service.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import lombok.AccessLevel;
@@ -20,7 +21,7 @@ public class UserDto {
 
     String email;
 
-    Double balance = 0.0;
+    BigDecimal balance = BigDecimal.ZERO;
 
     LocalDate createdDate;
 

@@ -1,5 +1,6 @@
 package com.tyrdanov.auth_service.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,7 +49,8 @@ public class User implements UserDetails {
     String password;
 
     @Builder.Default
-    Double balance = 0.0;
+    @Column(precision = 19, scale = 4)
+    BigDecimal balance = BigDecimal.ZERO;
 
     @CreationTimestamp
     @Column(name = "created_date", updatable = false)
