@@ -1,5 +1,7 @@
 package com.tyrdanov.auth_service.dto;
 
+import java.math.BigDecimal;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,6 +22,6 @@ public class UpdateUserDto {
 
     String password;
 
-    Double balance = 0.0;
+    BigDecimal balance = BigDecimal.ZERO;
 
 }
