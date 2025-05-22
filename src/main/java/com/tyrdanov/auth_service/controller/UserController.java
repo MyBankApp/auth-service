@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tyrdanov.auth_service.dto.ConfirmRegistrationDto;
 import com.tyrdanov.auth_service.dto.TransferRequest;
 import com.tyrdanov.auth_service.dto.UpdateUserDto;
 import com.tyrdanov.auth_service.dto.UserDto;
@@ -33,6 +34,11 @@ public class UserController {
     @GetMapping("/{id}")
     public UserDto getById(@PathVariable Long id) {
         return service.getById(id);
+    }
+
+    @GetMapping("/register/{generatedString}")
+    public ConfirmRegistrationDto confirmRegistration(@PathVariable String generatedString) {
+        return service.confirmRegistration(generatedString);
     }
 
     @PostMapping

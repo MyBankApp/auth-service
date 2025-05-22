@@ -60,6 +60,9 @@ public class User implements UserDetails {
     String confirmationCode;
 
     @Builder.Default
+    Boolean isConfirmed = false;
+
+    @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     List<Token> tokens = new ArrayList<>();
 

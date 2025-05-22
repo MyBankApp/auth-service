@@ -13,6 +13,7 @@ public interface UserMapper {
     
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "tokens", ignore = true)
+    @Mapping(target = "isConfirmed", ignore = true)
     @Mapping(target = "authorities", ignore = true)
     @Mapping(target = "createdDate", ignore = true)
     @Mapping(target = "confirmationCode", ignore = true)

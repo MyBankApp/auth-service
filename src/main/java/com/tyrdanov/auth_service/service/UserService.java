@@ -9,6 +9,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.tyrdanov.auth_service.dto.ConfirmRegistrationDto;
 import com.tyrdanov.auth_service.dto.CreateTransactionDto;
 import com.tyrdanov.auth_service.dto.TransactionDto;
 import com.tyrdanov.auth_service.dto.TransferRequest;
@@ -63,6 +64,29 @@ public class UserService {
                                 username,
                                 password,
                                 List.of());
+        }
+
+        public ConfirmRegistrationDto confirmRegistration(String generatedString) {
+                final var optionalUser = repository
+                                .findByConfirmationCode(generatedString);
+
+                if (optionalUser.isEmpty()) {
+                        return ConfirmRegistrationDto
+                                .builder()
+                                .confirmation(false)
+                                .build();
+                }
+
+                final var user = optionalUser.get();
+
+                user.setIsConfirmed(true);
+                user.setConfirmationCode(null);
+                repository.save(user);
+
+                return ConfirmRegistrationDto
+                                .builder()
+                                .confirmation(true)
+                                .build();
         }
 
         @Transactional
