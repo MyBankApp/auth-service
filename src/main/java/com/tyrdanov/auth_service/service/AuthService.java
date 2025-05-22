@@ -1,5 +1,8 @@
 package com.tyrdanov.auth_service.service;
 
+import java.util.UUID;
+
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -10,7 +13,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tyrdanov.auth_service.dto.AuthResponse;
+import com.tyrdanov.auth_service.dto.ConfirmEmailRequest;
 import com.tyrdanov.auth_service.dto.RefreshRequest;
 import com.tyrdanov.auth_service.dto.SignInDto;
 import com.tyrdanov.auth_service.dto.SignUpDto;
@@ -37,6 +43,7 @@ public class AuthService {
     private final TokenRepository tokenRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     public UserDto register(SignUpDto dto) {
         final var username = dto.getUsername();
@@ -44,6 +51,7 @@ public class AuthService {
         final var email = dto.getEmail();
         final var encodedPassword = passwordEncoder.encode(password);
         final var isExistByUsername = userRepository.existsByUsername(username);
+        final var confirmationCode = UUID.randomUUID().toString();
 
         if (isExistByUsername) {
             throw new UserAlreadyExistAuthenticationException("Username already exists");
@@ -54,11 +62,32 @@ public class AuthService {
                 .email(email)
                 .username(username)
                 .password(encodedPassword)
+                .confirmationCode(confirmationCode)
+                .isConfirmed(false)
                 .build();
 
-        final var createdUser = userRepository.save(user);
+        final var id = user.getId();
+        final var confirmEmailRequest = ConfirmEmailRequest
+                .builder()
+                .id(id)
+                .email(email)
+                .confirmationCode(confirmationCode)
+                .build();
+                
+        final var objectMapper = new ObjectMapper();
 
-        return userMapper.toDto(createdUser);
+        try {
+            final var confirmEmailRequestJson = objectMapper.writeValueAsString(confirmEmailRequest);
+
+            kafkaTemplate.send("confirm-email-request-topic", confirmEmailRequestJson);
+
+            final var createdUser = userRepository.save(user);
+
+            return userMapper.toDto(createdUser);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public AuthResponse login(SignInDto dto) {
