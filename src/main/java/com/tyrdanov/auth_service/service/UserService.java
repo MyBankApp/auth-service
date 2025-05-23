@@ -1,32 +1,29 @@
 package com.tyrdanov.auth_service.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import com.tyrdanov.auth_service.dto.ConfirmRegistrationDto;
-import com.tyrdanov.auth_service.dto.CreateTransactionDto;
 import com.tyrdanov.auth_service.dto.TransactionDto;
 import com.tyrdanov.auth_service.dto.TransferRequest;
-import com.tyrdanov.auth_service.dto.UpdateTransactionDto;
 import com.tyrdanov.auth_service.dto.UpdateUserDto;
 import com.tyrdanov.auth_service.dto.UserDto;
 import com.tyrdanov.auth_service.enums.Status;
 import com.tyrdanov.auth_service.exception.InsufficientBalanceException;
+import com.tyrdanov.auth_service.exception.LimitOperationsException;
 import com.tyrdanov.auth_service.exception.ResourceNotFoundException;
 import com.tyrdanov.auth_service.exception.TransferFailedException;
 import com.tyrdanov.auth_service.factory.TransactionDtoFactory;
 import com.tyrdanov.auth_service.mapper.UserMapper;
+import com.tyrdanov.auth_service.model.User;
 import com.tyrdanov.auth_service.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import reactor.core.publisher.Mono;
 
 @Service
 @RequiredArgsConstructor
@@ -34,8 +31,8 @@ public class UserService {
 
         private final UserMapper mapper;
         private final UserRepository repository;
-        private final WebClient.Builder clientBuilder;
         private final BCryptPasswordEncoder bCryptPasswordEncoder;
+        private final TransactionServiceClient transactionServiceClient;
 
         public List<UserDto> getAll() {
                 return repository
@@ -72,9 +69,9 @@ public class UserService {
 
                 if (optionalUser.isEmpty()) {
                         return ConfirmRegistrationDto
-                                .builder()
-                                .confirmation(false)
-                                .build();
+                                        .builder()
+                                        .confirmation(false)
+                                        .build();
                 }
 
                 final var user = optionalUser.get();
@@ -107,25 +104,19 @@ public class UserService {
                         throw new InsufficientBalanceException("Insufficient balance");
                 }
 
-                final var updatedSenderBalance = senderBalance.subtract(amount);
-                final var updatedReceiverBalance = receiverBalance.add(amount);
-                final var createdTransactionDto = TransactionDtoFactory.buildCreateDto(request);
+                final var transactionsByUserId = transactionServiceClient.getTransactionsByUserId(senderId);
+                final var isConfirmed = sender.getIsConfirmed().booleanValue();
+                final var summa = transactionsByUserId
+                                .stream()
+                                .mapToDouble(dto -> dto.getSenderId().equals(senderId)
+                                                ? -dto.getAmount().doubleValue()
+                                                : dto.getAmount().doubleValue())
+                                .sum();
 
-                TransactionDto transactionDto = null;
-
-                try {
-                        transactionDto = getTransactionDto(createdTransactionDto);
-
-                        final var id = transactionDto.getId();
-                        final var updateDto = TransactionDtoFactory.buildUpdateDto(id, request, Status.COMPLETED);
-
-                        updateTransaction(updateDto);
-
-                        sender.setBalance(updatedSenderBalance);
-                        receiver.setBalance(updatedReceiverBalance);
-                } catch (Exception e) {
-                        handleFailure(request, transactionDto);
-                        throw new TransferFailedException("Transfer failed: " + e.getMessage(), e);
+                if (isConfirmed || (summa >= -5000 && amount.intValue() <= 5000)) {
+                        performTransfer(senderBalance, receiverBalance, sender, receiver, request, amount);
+                } else {
+                        throw new LimitOperationsException("Limit of operations");
                 }
         }
 
@@ -149,54 +140,41 @@ public class UserService {
                 repository.deleteById(id);
         }
 
+        private void performTransfer(BigDecimal senderBalance, BigDecimal receiverBalance,
+                        User sender, User receiver, TransferRequest request,
+                        BigDecimal amount) {
+                final var updatedSenderBalance = senderBalance.subtract(amount);
+                final var updatedReceiverBalance = receiverBalance.add(amount);
+                final var createdTransactionDto = TransactionDtoFactory.buildCreateDto(request);
+
+                TransactionDto transactionDto = null;
+
+                try {
+                        transactionDto = transactionServiceClient.getTransactionDto(createdTransactionDto);
+
+                        final var id = transactionDto.getId();
+                        final var updateDto = TransactionDtoFactory.buildUpdateDto(id, request, Status.COMPLETED);
+
+                        transactionServiceClient.updateTransaction(updateDto);
+
+                        sender.setBalance(updatedSenderBalance);
+                        receiver.setBalance(updatedReceiverBalance);
+                } catch (Exception e) {
+                        handleFailure(request, transactionDto);
+                        throw new TransferFailedException("Transfer failed: " + e.getMessage(), e);
+                }
+        }
+
         private void handleFailure(TransferRequest request, TransactionDto transactionDto) {
                 if (transactionDto != null) {
                         final var id = transactionDto.getId();
                         final var updateDto = TransactionDtoFactory.buildUpdateDto(id, request, Status.FAILED);
                         try {
-                                updateTransaction(updateDto);
+                                transactionServiceClient.updateTransaction(updateDto);
                         } catch (Exception ex) {
                                 System.err.println("Failed to update transaction status to FAILED: "
                                                 + ex.getMessage());
                         }
                 }
-        }
-
-        private TransactionDto getTransactionDto(CreateTransactionDto dto) {
-                return clientBuilder
-                                .baseUrl("http://TRANSACTION-SERVICE")
-                                .build()
-                                .post()
-                                .uri("/api/transaction")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .bodyValue(dto)
-                                .accept(MediaType.APPLICATION_JSON)
-                                .retrieve()
-                                .onStatus(HttpStatusCode::isError, response -> response
-                                                .bodyToMono(String.class)
-                                                .flatMap(errorBody -> Mono.error(
-                                                                new RuntimeException("Error in microservice"
-                                                                                + errorBody))))
-                                .bodyToMono(TransactionDto.class)
-                                .block();
-        }
-
-        private void updateTransaction(UpdateTransactionDto dto) {
-                clientBuilder
-                                .baseUrl("http://TRANSACTION-SERVICE")
-                                .build()
-                                .put()
-                                .uri("/api/transaction")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .bodyValue(dto)
-                                .retrieve()
-                                .onStatus(HttpStatusCode::isError, response -> response
-                                                .bodyToMono(String.class)
-                                                .flatMap(error -> Mono.error(
-                                                                new RuntimeException(
-                                                                                "Failed to mark transaction as FAILED: "
-                                                                                                + error))))
-                                .bodyToMono(Void.class)
-                                .block();
         }
 }
