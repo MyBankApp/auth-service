@@ -21,6 +21,7 @@ import com.tyrdanov.auth_service.dto.RefreshRequest;
 import com.tyrdanov.auth_service.dto.SignInDto;
 import com.tyrdanov.auth_service.dto.SignUpDto;
 import com.tyrdanov.auth_service.dto.UserDto;
+import com.tyrdanov.auth_service.exception.EmailAlreadyExistException;
 import com.tyrdanov.auth_service.exception.UserAlreadyExistAuthenticationException;
 import com.tyrdanov.auth_service.exception.UserLogoutException;
 import com.tyrdanov.auth_service.mapper.UserMapper;
@@ -51,10 +52,15 @@ public class AuthService {
         final var email = dto.getEmail();
         final var encodedPassword = passwordEncoder.encode(password);
         final var isExistByUsername = userRepository.existsByUsername(username);
+        final var isExistByEmail = userRepository.existsByEmail(email);
         final var confirmationCode = UUID.randomUUID().toString();
 
         if (isExistByUsername) {
             throw new UserAlreadyExistAuthenticationException("Username already exists");
+        }
+
+        if (isExistByEmail) {
+            throw new EmailAlreadyExistException("Email already exists");
         }
 
         final var user = User
