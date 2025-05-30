@@ -22,6 +22,7 @@ import com.tyrdanov.auth_service.dto.SignInDto;
 import com.tyrdanov.auth_service.dto.SignUpDto;
 import com.tyrdanov.auth_service.dto.UserDto;
 import com.tyrdanov.auth_service.exception.EmailAlreadyExistException;
+import com.tyrdanov.auth_service.exception.ResourceNotFoundException;
 import com.tyrdanov.auth_service.exception.UserAlreadyExistAuthenticationException;
 import com.tyrdanov.auth_service.exception.UserLogoutException;
 import com.tyrdanov.auth_service.mapper.UserMapper;
@@ -79,7 +80,7 @@ public class AuthService {
                 .email(email)
                 .confirmationCode(confirmationCode)
                 .build();
-                
+
         final var objectMapper = new ObjectMapper();
 
         try {
@@ -137,6 +138,23 @@ public class AuthService {
         }
 
         throw new UserLogoutException("User is not logged in");
+    }
+
+    public UserDto getCurrentUser(UserDetails userDetails) {
+        if (userDetails == null) {
+            return null;
+        }
+
+        final var username = userDetails.getUsername();
+        final var user = userRepository
+                .findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        return userMapper.toDto(user);
+    }
+
+    public boolean validate(UserDetails userDetails) {
+        return userDetails != null;
     }
 
     public AuthResponse refresh(RefreshRequest request) {
