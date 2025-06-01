@@ -6,5 +6,6 @@ CREATE TABLE IF NOT EXISTS users (
     balance DECIMAL DEFAULT 0.0,
     created_date DATE NOT NULL,
     is_confirmed BOOLEAN DEFAULT FALSE,
-    confirmation_code VARCHAR
+    confirmation_code VARCHAR,
+    role_id INTEGER REFERENCES roles (id)
 );
