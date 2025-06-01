@@ -28,6 +28,7 @@ import com.tyrdanov.auth_service.exception.UserLogoutException;
 import com.tyrdanov.auth_service.mapper.UserMapper;
 import com.tyrdanov.auth_service.model.Token;
 import com.tyrdanov.auth_service.model.User;
+import com.tyrdanov.auth_service.repository.RoleRepository;
 import com.tyrdanov.auth_service.repository.TokenRepository;
 import com.tyrdanov.auth_service.repository.UserRepository;
 import com.tyrdanov.auth_service.util.JwtUtil;
@@ -42,6 +43,7 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final UserMapper userMapper;
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final TokenRepository tokenRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
@@ -55,6 +57,9 @@ public class AuthService {
         final var isExistByUsername = userRepository.existsByUsername(username);
         final var isExistByEmail = userRepository.existsByEmail(email);
         final var confirmationCode = UUID.randomUUID().toString();
+        final var role = roleRepository
+                .findByName("ROLE_USER")
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found"));
 
         if (isExistByUsername) {
             throw new UserAlreadyExistAuthenticationException("Username already exists");
@@ -70,6 +75,7 @@ public class AuthService {
                 .username(username)
                 .password(encodedPassword)
                 .confirmationCode(confirmationCode)
+                .role(role)
                 .isConfirmed(false)
                 .build();
 
