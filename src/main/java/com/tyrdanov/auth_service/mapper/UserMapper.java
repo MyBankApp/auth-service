@@ -12,6 +12,7 @@ import com.tyrdanov.auth_service.model.User;
 public interface UserMapper {
     
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "role", ignore = true)
     @Mapping(target = "tokens", ignore = true)
     @Mapping(target = "isConfirmed", ignore = true)
     @Mapping(target = "authorities", ignore = true)
