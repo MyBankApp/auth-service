@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.tyrdanov.auth_service.dto.ConfirmRegistrationDto;
@@ -31,7 +30,6 @@ public class UserService {
 
         private final UserMapper mapper;
         private final UserRepository repository;
-        private final BCryptPasswordEncoder bCryptPasswordEncoder;
         private final TransactionServiceClient transactionServiceClient;
 
         public List<UserDto> getAll() {
@@ -122,13 +120,10 @@ public class UserService {
 
         public UserDto update(UpdateUserDto dto) {
                 final var id = dto.getId();
-                final var password = dto.getPassword();
-                final var encodedPassword = bCryptPasswordEncoder.encode(password);
                 final var user = repository
                                 .findById(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-                dto.setPassword(encodedPassword);
                 mapper.update(dto, user);
 
                 final var savedUser = repository.save(user);

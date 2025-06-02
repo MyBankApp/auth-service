@@ -20,8 +20,6 @@ public class UpdateUserDto {
 
     String email;
 
-    String password;
-
     BigDecimal balance = BigDecimal.ZERO;
 
 }
